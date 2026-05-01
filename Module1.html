@@ -1,11 +1,1033 @@
+<?php
+// ============================================================
+//  SHOPZONE — Single-file full website
+//  Pages: shop (public), customer login/register, cart/bill, admin
+// ============================================================
+session_start();
+
+// ── DATA FILE (acts as our "database") ──────────────────────
+$data_file = __DIR__ . '/shop_data.json';
+
+function load_data() {
+    global $data_file;
+    if (!file_exists($data_file)) {
+        $default = [
+            'products' => [
+                ['id'=>1,'name'=>'Wireless Headphones','price'=>79.99,'sale_price'=>59.99,'on_sale'=>true, 'stock'=>45,'category'=>'Electronics','img'=>'','desc'=>'Premium sound quality with noise cancellation.'],
+                ['id'=>2,'name'=>'Running Shoes',      'price'=>54.99,'sale_price'=>0,    'on_sale'=>false,'stock'=>30,'category'=>'Footwear',   'img'=>'','desc'=>'Lightweight comfort for daily running.'],
+                ['id'=>3,'name'=>'Smart Watch',        'price'=>129.99,'sale_price'=>99.99,'on_sale'=>true,'stock'=>20,'category'=>'Electronics','img'=>'','desc'=>'Track fitness and stay connected.'],
+                ['id'=>4,'name'=>'Leather Wallet',     'price'=>24.99,'sale_price'=>0,    'on_sale'=>false,'stock'=>60,'category'=>'Accessories','img'=>'','desc'=>'Slim genuine leather wallet.'],
+                ['id'=>5,'name'=>'Yoga Mat',           'price'=>34.99,'sale_price'=>24.99,'on_sale'=>true,'stock'=>15,'category'=>'Fitness',    'img'=>'','desc'=>'Non-slip premium yoga mat.'],
+            ],
+            'customers' => [
+                ['id'=>1,'name'=>'Ali Raza',  'email'=>'ali@example.com',  'pass'=>password_hash('pass123',PASSWORD_DEFAULT),'orders'=>5, 'joined'=>'2024-10-01','status'=>'Active'],
+                ['id'=>2,'name'=>'Sara Khan', 'email'=>'sara@example.com', 'pass'=>password_hash('pass123',PASSWORD_DEFAULT),'orders'=>2, 'joined'=>'2024-11-15','status'=>'Active'],
+            ],
+            'subscribers' => [
+                ['id'=>1,'email'=>'ali@example.com',  'joined'=>date('Y-m-d')],
+                ['id'=>2,'email'=>'sara@example.com', 'joined'=>date('Y-m-d')],
+            ],
+            'orders' => [],
+            'monthly_sales' => ['Jan'=>3200,'Feb'=>4800,'Mar'=>4100,'Apr'=>5500,'May'=>6200,'Jun'=>5800,'Jul'=>7100,'Aug'=>6500,'Sep'=>5900,'Oct'=>7800,'Nov'=>9200,'Dec'=>11000],
+            'next_id' => 6
+        ];
+        file_put_contents($data_file, json_encode($default, JSON_PRETTY_PRINT));
+    }
+    return json_decode(file_get_contents($data_file), true);
+}
+
+function save_data($data) {
+    global $data_file;
+    file_put_contents($data_file, json_encode($data, JSON_PRETTY_PRINT));
+}
+
+$db = load_data();
+$msg = ''; $msg_type = 'success';
+
+// ── UPLOADS DIR ─────────────────────────────────────────────
+$upload_dir = __DIR__ . '/uploads/';
+if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+
+// ── DETERMINE ROLE / VIEW ───────────────────────────────────
+$view  = $_GET['view']  ?? 'shop';   // shop | login | register | cart | receipt | admin
+$apage = $_GET['apage'] ?? 'dashboard';
+
+// ── ADMIN AUTH ──────────────────────────────────────────────
+$ADMIN = ['user'=>'admin','pass'=>'admin123'];
+if (isset($_POST['admin_login'])) {
+    if ($_POST['auser']===$ADMIN['user'] && $_POST['apass']===$ADMIN['pass']) {
+        $_SESSION['admin'] = true;
+        header("Location: ?view=admin"); exit;
+    } else { $msg='Wrong admin credentials!'; $msg_type='error'; }
+}
+if (isset($_GET['alogout'])) { unset($_SESSION['admin']); header("Location: ?view=shop"); exit; }
+$is_admin = !empty($_SESSION['admin']);
+
+// ── CUSTOMER AUTH ───────────────────────────────────────────
+if (isset($_POST['cust_register'])) {
+    $email = trim($_POST['email']);
+    $exists = array_filter($db['customers'], fn($c)=>$c['email']===$email);
+    if ($exists) { $msg='Email already registered!'; $msg_type='error'; }
+    else {
+        $db['customers'][] = [
+            'id'=>$db['next_id']++, 'name'=>htmlspecialchars(trim($_POST['cname'])),
+            'email'=>$email, 'pass'=>password_hash($_POST['cpass'],PASSWORD_DEFAULT),
+            'orders'=>0, 'joined'=>date('Y-m-d'), 'status'=>'Active'
+        ];
+        save_data($db);
+        $msg='Registered! Please login.'; $view='login';
+    }
+}
+if (isset($_POST['cust_login'])) {
+    $email = trim($_POST['email']);
+    foreach ($db['customers'] as $c) {
+        if ($c['email']===$email && password_verify($_POST['cpass'],$c['pass'])) {
+            $_SESSION['cust_id']=$c['id']; $_SESSION['cust_name']=$c['name'];
+            header("Location: ?view=shop"); exit;
+        }
+    }
+    $msg='Invalid email or password!'; $msg_type='error';
+}
+if (isset($_GET['clogout'])) { unset($_SESSION['cust_id'],$_SESSION['cust_name']); header("Location: ?view=shop"); exit; }
+$is_cust = !empty($_SESSION['cust_id']);
+
+// ── SUBSCRIBE ───────────────────────────────────────────────
+if (isset($_POST['subscribe'])) {
+    $semail = trim($_POST['sub_email']);
+    $already = array_filter($db['subscribers'], fn($s)=>$s['email']===$semail);
+    if (!$already) {
+        $db['subscribers'][] = ['id'=>$db['next_id']++,'email'=>$semail,'joined'=>date('Y-m-d')];
+        save_data($db); $msg='Subscribed successfully! 🎉'; $msg_type='success';
+    } else { $msg='Already subscribed!'; $msg_type='error'; }
+}
+
+// ── CART (session) ───────────────────────────────────────────
+if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
+if (isset($_POST['add_to_cart'])) {
+    $pid = intval($_POST['pid']);
+    if (isset($_SESSION['cart'][$pid])) $_SESSION['cart'][$pid]++;
+    else $_SESSION['cart'][$pid] = 1;
+    $msg = 'Item added to cart! 🛒'; $msg_type='success';
+}
+if (isset($_POST['remove_cart'])) { unset($_SESSION['cart'][intval($_POST['pid'])]); }
+if (isset($_POST['update_qty'])) {
+    $pid=intval($_POST['pid']); $qty=intval($_POST['qty']);
+    if ($qty<=0) unset($_SESSION['cart'][$pid]); else $_SESSION['cart'][$pid]=$qty;
+}
+if (isset($_POST['clear_cart'])) { $_SESSION['cart']=[]; header("Location: ?view=shop"); exit; }
+
+// ── PLACE ORDER ─────────────────────────────────────────────
+if (isset($_POST['place_order'])) {
+    $items=[]; $total=0;
+    foreach ($_SESSION['cart'] as $pid=>$qty) {
+        foreach ($db['products'] as $p) {
+            if ($p['id']==$pid) {
+                $price = $p['on_sale'] && $p['sale_price']>0 ? $p['sale_price'] : $p['price'];
+                $items[]=['name'=>$p['name'],'qty'=>$qty,'price'=>$price,'subtotal'=>$price*$qty];
+                $total += $price*$qty;
+            }
+        }
+    }
+    $tax = round($total*0.08,2);
+    $order = ['id'=>$db['next_id']++,'cust'=>$_SESSION['cust_name']??'Guest','email'=>$_POST['c_email']??'',
+              'phone'=>$_POST['c_phone']??'','items'=>$items,'subtotal'=>$total,'tax'=>$tax,
+              'grand'=>$total+$tax,'date'=>date('Y-m-d H:i'),'status'=>'Confirmed'];
+    $db['orders'][] = $order;
+    // bump sales
+    $mo = date('M');
+    $db['monthly_sales'][$mo] = ($db['monthly_sales'][$mo]??0) + ($total+$tax);
+    // bump customer orders
+    foreach ($db['customers'] as &$c) { if ($c['id']==($_SESSION['cust_id']??0)) $c['orders']++; }
+    save_data($db);
+    $_SESSION['last_order'] = $order;
+    $_SESSION['cart'] = [];
+    header("Location: ?view=receipt"); exit;
+}
+
+// ── ADMIN: ADD PRODUCT ───────────────────────────────────────
+if ($is_admin && isset($_POST['add_product'])) {
+    $img_name = '';
+    if (!empty($_FILES['pimg']['name'])) {
+        $ext = pathinfo($_FILES['pimg']['name'],PATHINFO_EXTENSION);
+        $img_name = 'prod_'.$db['next_id'].'.'.$ext;
+        move_uploaded_file($_FILES['pimg']['tmp_name'], $upload_dir.$img_name);
+    }
+    $on_sale = isset($_POST['on_sale']);
+    $db['products'][] = [
+        'id'=>$db['next_id']++,'name'=>htmlspecialchars($_POST['pname']),
+        'price'=>floatval($_POST['pprice']),'sale_price'=>floatval($_POST['psale']??0),
+        'on_sale'=>$on_sale,'stock'=>intval($_POST['pstock']),
+        'category'=>htmlspecialchars($_POST['pcat']),'img'=>$img_name,
+        'desc'=>htmlspecialchars($_POST['pdesc']??'')
+    ];
+    save_data($db); $msg='✅ Product added!'; $msg_type='success';
+}
+
+// ── ADMIN: DELETE PRODUCT ────────────────────────────────────
+if ($is_admin && isset($_POST['delete_product'])) {
+    $del_id = intval($_POST['del_id']);
+    $db['products'] = array_values(array_filter($db['products'],fn($p)=>$p['id']!==$del_id));
+    save_data($db); $msg='🗑️ Product deleted!'; $msg_type='success';
+}
+
+// ── ADMIN: EDIT PRODUCT ──────────────────────────────────────
+if ($is_admin && isset($_POST['edit_product'])) {
+    $eid = intval($_POST['eid']);
+    foreach ($db['products'] as &$p) {
+        if ($p['id']===$eid) {
+            $p['name']      = htmlspecialchars($_POST['pname']);
+            $p['price']     = floatval($_POST['pprice']);
+            $p['sale_price']= floatval($_POST['psale']??0);
+            $p['on_sale']   = isset($_POST['on_sale']);
+            $p['stock']     = intval($_POST['pstock']);
+            $p['category']  = htmlspecialchars($_POST['pcat']);
+            $p['desc']      = htmlspecialchars($_POST['pdesc']??'');
+            if (!empty($_FILES['pimg']['name'])) {
+                $ext = pathinfo($_FILES['pimg']['name'],PATHINFO_EXTENSION);
+                $img_name = 'prod_'.$eid.'.'.$ext;
+                move_uploaded_file($_FILES['pimg']['tmp_name'], $upload_dir.$img_name);
+                $p['img'] = $img_name;
+            }
+        }
+    }
+    save_data($db); $msg='✅ Product updated!'; $msg_type='success';
+}
+
+// ── ADMIN: REMOVE SUBSCRIBER ────────────────────────────────
+if ($is_admin && isset($_POST['remove_sub'])) {
+    $sid = intval($_POST['sid']);
+    $db['subscribers'] = array_values(array_filter($db['subscribers'],fn($s)=>$s['id']!==$sid));
+    save_data($db); $msg='Subscriber removed.'; $msg_type='success';
+}
+
+// ── RE-LOAD DB after writes ──────────────────────────────────
+$db = load_data();
+$cart_count = array_sum($_SESSION['cart']);
+
+// ── HELPER ──────────────────────────────────────────────────
+function product_price($p) {
+    return ($p['on_sale'] && $p['sale_price']>0) ? $p['sale_price'] : $p['price'];
+}
+function img_src($p) {
+    if (!empty($p['img']) && file_exists(__DIR__.'/uploads/'.$p['img']))
+        return 'uploads/'.htmlspecialchars($p['img']);
+    // placeholder by category
+    $colors=['Electronics'=>'4f7ef8','Footwear'=>'f87c4f','Fitness'=>'48bb78','Accessories'=>'f6c90e','Clothing'=>'c084fc','Home'=>'67e8f9'];
+    $c=$colors[$p['category']]??'94a3b8';
+    return "https://placehold.co/300x220/$c/fff?text=".urlencode($p['name']);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShopZone</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#1a202c;min-height:100vh}
+
+/* ── NAV ── */
+nav{background:#1a1f2e;color:#fff;padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.brand{font-size:22px;font-weight:800;color:#4f7ef8;text-decoration:none}
+.brand span{color:#fff}
+.nav-links{display:flex;align-items:center;gap:18px}
+.nav-links a{color:#cbd5e0;text-decoration:none;font-size:14px;font-weight:500;transition:color .15s}
+.nav-links a:hover{color:#fff}
+.cart-btn{background:#4f7ef8;color:#fff;padding:7px 16px;border-radius:20px;font-weight:700;font-size:13px}
+.cart-btn:hover{background:#3b6ee0;color:#fff}
+.badge-pill{background:#e53e3e;color:#fff;border-radius:50%;padding:1px 6px;font-size:11px;font-weight:800;margin-left:4px}
+
+/* ── ALERT ── */
+.alert{padding:12px 20px;border-radius:8px;margin:16px auto;max-width:900px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px}
+.alert.success{background:#c6f6d5;border:1px solid #48bb78;color:#276749}
+.alert.error  {background:#fed7d7;border:1px solid #e53e3e;color:#c53030}
+.alert .close-x{margin-left:auto;cursor:pointer;font-size:18px;line-height:1}
+
+/* ── HERO ── */
+.hero{background:linear-gradient(120deg,#1a1f2e,#2d3748);color:#fff;padding:60px 28px;text-align:center}
+.hero h1{font-size:42px;font-weight:900;margin-bottom:12px}
+.hero h1 span{color:#4f7ef8}
+.hero p{color:#a0aec0;font-size:16px;margin-bottom:28px}
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:10px 22px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:700;text-decoration:none;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-blue{background:#4f7ef8;color:#fff}
+.btn-outline{background:transparent;border:2px solid #4f7ef8;color:#4f7ef8}
+.btn-sm{padding:6px 14px;font-size:12px}
+.btn-red{background:#e53e3e;color:#fff}
+.btn-green{background:#38a169;color:#fff}
+.btn-gray{background:#718096;color:#fff}
+
+/* ── SHOP GRID ── */
+.section{padding:36px 28px;max-width:1200px;margin:0 auto}
+.section-title{font-size:22px;font-weight:800;color:#1a202c;margin-bottom:22px;padding-bottom:10px;border-bottom:2px solid #e2e8f0}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+.filter-btn{padding:7px 18px;border-radius:20px;border:1.5px solid #cbd5e0;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;color:#4a5568}
+.filter-btn.active,.filter-btn:hover{background:#4f7ef8;color:#fff;border-color:#4f7ef8}
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+.card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);transition:transform .2s,box-shadow .2s;position:relative}
+.card:hover{transform:translateY(-4px);box-shadow:0 8px 28px rgba(0,0,0,.12)}
+.card img{width:100%;height:180px;object-fit:cover}
+.sale-tag{position:absolute;top:10px;left:10px;background:#e53e3e;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.card-body{padding:14px}
+.card-cat{font-size:11px;color:#a0aec0;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.card-name{font-size:15px;font-weight:700;margin-bottom:6px;color:#2d3748}
+.card-desc{font-size:12px;color:#718096;margin-bottom:10px;line-height:1.5}
+.card-price{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.price-now{font-size:18px;font-weight:800;color:#4f7ef8}
+.price-old{font-size:13px;color:#a0aec0;text-decoration:line-through}
+.card form{display:inline}
+.card .add-btn{width:100%;padding:9px;background:#4f7ef8;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s}
+.card .add-btn:hover{background:#3b6ee0}
+
+/* ── AUTH PAGES ── */
+.auth-wrap{display:flex;align-items:center;justify-content:center;min-height:80vh;padding:28px}
+.auth-card{background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.1)}
+.auth-card h2{font-size:24px;font-weight:800;margin-bottom:6px;color:#1a202c}
+.auth-card p{color:#718096;font-size:13px;margin-bottom:24px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:700;color:#4a5568;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;transition:border-color .2s;background:#f7f9fc;color:#1a202c}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#4f7ef8;background:#fff}
+.form-group textarea{resize:vertical;min-height:70px}
+.auth-card .btn-full{width:100%;padding:12px;font-size:15px}
+.auth-switch{text-align:center;margin-top:18px;font-size:13px;color:#718096}
+.auth-switch a{color:#4f7ef8;font-weight:700;text-decoration:none}
+
+/* ── CART ── */
+.cart-wrap{max-width:860px;margin:28px auto;padding:0 20px}
+.cart-table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.cart-table th{background:#f7f9fc;padding:13px 16px;text-align:left;font-size:12px;font-weight:800;color:#718096;text-transform:uppercase;letter-spacing:.4px}
+.cart-table td{padding:13px 16px;border-bottom:1px solid #f0f4f8;font-size:14px;color:#2d3748}
+.cart-table tr:last-child td{border:none}
+.qty-box{width:56px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:14px;text-align:center}
+.cart-summary{background:#fff;border-radius:14px;padding:24px;margin-top:18px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.summary-row{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;color:#4a5568;border-bottom:1px solid #f0f4f8}
+.summary-row:last-child{border:none;font-size:16px;font-weight:800;color:#1a202c}
+.order-form{background:#fff;border-radius:14px;padding:24px;margin-top:18px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.order-form h3{font-size:16px;font-weight:800;margin-bottom:16px;color:#1a202c}
+.form-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* ── RECEIPT ── */
+.receipt-wrap{max-width:620px;margin:36px auto;padding:0 20px}
+.receipt-card{background:#fff;border-radius:16px;padding:36px;box-shadow:0 4px 24px rgba(0,0,0,.1)}
+.receipt-header{text-align:center;margin-bottom:28px;padding-bottom:20px;border-bottom:2px dashed #e2e8f0}
+.receipt-header h2{font-size:28px;font-weight:900;color:#4f7ef8}
+.receipt-header p{color:#718096;font-size:13px}
+.receipt-check{font-size:48px;margin-bottom:10px}
+.receipt-table{width:100%;margin:16px 0;border-collapse:collapse}
+.receipt-table th{text-align:left;padding:8px;font-size:12px;font-weight:700;color:#718096;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
+.receipt-table td{padding:10px 8px;font-size:14px;color:#2d3748;border-bottom:1px solid #f7f9fc}
+.receipt-total{margin-top:16px;padding-top:16px;border-top:2px solid #e2e8f0}
+.receipt-row{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}
+.receipt-row.grand{font-size:18px;font-weight:800;color:#4f7ef8;border-top:1px solid #e2e8f0;margin-top:8px;padding-top:8px}
+.print-btn{display:block;width:100%;margin-top:22px;padding:12px;background:#4f7ef8;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer}
+@media print{nav,#no-print{display:none}body{background:#fff}}
+
+/* ── SUBSCRIBE BAR ── */
+.sub-bar{background:#1a1f2e;color:#fff;padding:36px 28px;text-align:center}
+.sub-bar h3{font-size:20px;font-weight:800;margin-bottom:8px}
+.sub-bar p{color:#a0aec0;font-size:14px;margin-bottom:18px}
+.sub-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.sub-form input{padding:11px 18px;border-radius:8px;border:none;font-size:14px;width:280px;outline:none}
+.sub-form button{padding:11px 22px;background:#4f7ef8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+
+/* ── ADMIN ── */
+.admin-wrap{display:flex;min-height:calc(100vh - 60px)}
+.sidebar{width:220px;background:#1a1f2e;flex-shrink:0;padding:18px 0}
+.sidebar a{display:flex;align-items:center;gap:10px;padding:11px 20px;color:#718096;text-decoration:none;font-size:14px;font-weight:500;border-left:3px solid transparent;transition:all .15s}
+.sidebar a:hover{color:#fff;background:#1e2535}
+.sidebar a.act{color:#4f7ef8;background:#1e2535;border-left-color:#4f7ef8}
+.amain{flex:1;padding:28px;overflow-y:auto;background:#0f1117}
+.page-title{font-size:24px;font-weight:800;color:#fff;margin-bottom:22px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:#1e2535;border:1px solid #2d3748;border-radius:12px;padding:20px}
+.stat-card .slabel{font-size:11px;color:#718096;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-card .sval{font-size:28px;font-weight:800;color:#fff}
+.stat-card .sbadge{font-size:12px;color:#48bb78;margin-top:3px}
+.table-card{background:#1e2535;border:1px solid #2d3748;border-radius:12px;overflow:hidden;margin-bottom:22px}
+.table-card .thead{padding:16px 20px;border-bottom:1px solid #2d3748;display:flex;justify-content:space-between;align-items:center}
+.table-card .thead span{font-size:15px;font-weight:700;color:#fff}
+table.at{width:100%;border-collapse:collapse}
+table.at th{background:#151b2a;padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px}
+table.at td{padding:11px 16px;border-bottom:1px solid #1a1f2e;font-size:13px;color:#cbd5e0}
+table.at tr:hover td{background:#1a1f2e}
+table.at tr:last-child td{border:none}
+.form-card{background:#1e2535;border:1px solid #2d3748;border-radius:12px;padding:22px;margin-bottom:22px}
+.form-card h3{font-size:15px;font-weight:700;color:#fff;margin-bottom:16px}
+.frow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+.frow2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px}
+.form-card label{display:block;font-size:11px;color:#718096;font-weight:700;margin-bottom:4px;text-transform:uppercase}
+.form-card input,.form-card select,.form-card textarea{width:100%;padding:9px 12px;background:#0f1117;border:1px solid #2d3748;border-radius:7px;color:#e2e8f0;font-size:13px;outline:none}
+.form-card input:focus,.form-card select:focus{border-color:#4f7ef8}
+.form-card .chk-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:#cbd5e0;font-size:13px}
+.abadge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.abadge.active{background:#1a3a2a;color:#48bb78}
+.abadge.inactive{background:#3b1a1a;color:#fc8181}
+.abadge.sale{background:#3b1a1a;color:#fbb06e}
+.chart-bars{display:flex;align-items:flex-end;gap:6px;height:150px;margin-top:12px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bar{width:100%;background:linear-gradient(180deg,#4f7ef8,#2d5cdc);border-radius:4px 4px 0 0;min-height:4px}
+.bar-label{font-size:10px;color:#718096;font-weight:600}
+.bar-val{font-size:9px;color:#4f7ef8;font-weight:700}
+.img-thumb{width:44px;height:36px;object-fit:cover;border-radius:5px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#1e2535;border:1px solid #2d3748;border-radius:14px;padding:28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:700;color:#fff;margin-bottom:18px}
+</style>
 </head>
 <body>
-    
+
+<!-- ═══════════════════════════════════════════════════════════
+     NAV
+═══════════════════════════════════════════════════════════ -->
+<nav>
+  <a href="?view=shop" class="brand">Shop<span>Zone</span></a>
+  <div class="nav-links">
+    <a href="?view=shop">🏠 Shop</a>
+    <?php if ($is_cust): ?>
+      <a href="?view=shop" style="color:#48bb78">👤 <?= htmlspecialchars($_SESSION['cust_name']) ?></a>
+      <a href="?clogout=1">Logout</a>
+    <?php else: ?>
+      <a href="?view=login">Login</a>
+      <a href="?view=register">Register</a>
+    <?php endif; ?>
+    <?php if ($is_admin): ?>
+      <a href="?view=admin" style="color:#f6c90e">⚙ Admin</a>
+      <a href="?alogout=1" style="color:#fc8181">Admin Logout</a>
+    <?php else: ?>
+      <a href="?view=admin_login" style="color:#a0aec0;font-size:12px">Admin</a>
+    <?php endif; ?>
+    <a href="?view=cart" class="cart-btn">🛒 Cart <span class="badge-pill"><?= $cart_count ?></span></a>
+  </div>
+</nav>
+
+<!-- ALERT -->
+<?php if ($msg): ?>
+<div class="alert <?= $msg_type ?>" id="main-alert">
+  <span><?= $msg ?></span>
+  <span class="close-x" onclick="document.getElementById('main-alert').remove()">×</span>
+</div>
+<?php endif; ?>
+
+<?php
+// ═══════════════════════════════════════════════════════════
+// VIEW: SHOP (Customer-facing main page)
+// ═══════════════════════════════════════════════════════════
+if ($view === 'shop'):
+?>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Shop <span>Everything</span></h1>
+  <p>Fresh deals, best prices — updated by our admin in real time!</p>
+  <div class="hero-btns">
+    <a href="#products" class="btn btn-blue">Browse Products</a>
+    <?php if (!$is_cust): ?><a href="?view=register" class="btn btn-outline">Join Free</a><?php endif; ?>
+  </div>
+</div>
+
+<!-- PRODUCTS -->
+<div class="section" id="products">
+  <div class="section-title">🛍️ All Products</div>
+
+  <!-- Filter buttons (JS-powered) -->
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterCat('all',this)">All</button>
+    <?php $cats=array_unique(array_column($db['products'],'category')); foreach($cats as $cat): ?>
+    <button class="filter-btn" onclick="filterCat('<?= htmlspecialchars($cat) ?>',this)"><?= htmlspecialchars($cat) ?></button>
+    <?php endforeach; ?>
+  </div>
+
+  <div class="products-grid" id="pg">
+    <?php foreach ($db['products'] as $p):
+      $eff_price = product_price($p);
+    ?>
+    <div class="card" data-cat="<?= htmlspecialchars($p['category']) ?>">
+      <?php if ($p['on_sale'] && $p['sale_price']>0): ?>
+        <div class="sale-tag">🔥 Sale</div>
+      <?php endif; ?>
+      <img src="<?= img_src($p) ?>" alt="<?= htmlspecialchars($p['name']) ?>">
+      <div class="card-body">
+        <div class="card-cat"><?= htmlspecialchars($p['category']) ?></div>
+        <div class="card-name"><?= htmlspecialchars($p['name']) ?></div>
+        <div class="card-desc"><?= htmlspecialchars($p['desc']) ?></div>
+        <div class="card-price">
+          <span class="price-now">$<?= number_format($eff_price,2) ?></span>
+          <?php if ($p['on_sale'] && $p['sale_price']>0): ?>
+            <span class="price-old">$<?= number_format($p['price'],2) ?></span>
+          <?php endif; ?>
+        </div>
+        <form method="POST" action="?view=shop">
+          <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+          <button type="submit" name="add_to_cart" class="add-btn"
+            <?= $p['stock']<=0 ? 'disabled style="background:#aaa"' : '' ?>>
+            <?= $p['stock']>0 ? '🛒 Add to Cart' : 'Out of Stock' ?>
+          </button>
+        </form>
+      </div>
+    </div>
+    <?php endforeach; ?>
+  </div>
+</div>
+
+<!-- SUBSCRIBE -->
+<div class="sub-bar">
+  <h3>📬 Stay in the loop</h3>
+  <p>Subscribe for exclusive deals and new arrivals.</p>
+  <form method="POST" action="?view=shop" class="sub-form">
+    <input type="email" name="sub_email" placeholder="your@email.com" required>
+    <button type="submit" name="subscribe">Subscribe</button>
+  </form>
+</div>
+
+<script>
+function filterCat(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#pg .card').forEach(c=>{
+    c.style.display = (cat==='all' || c.dataset.cat===cat) ? '' : 'none';
+  });
+}
+</script>
+
+<?php
+// ═══════════════════════════════════════════════════════════
+// VIEW: CUSTOMER LOGIN
+// ═══════════════════════════════════════════════════════════
+elseif ($view === 'login'):
+?>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h2>Welcome Back 👋</h2>
+    <p>Login to your ShopZone account</p>
+    <form method="POST" action="?view=login">
+      <div class="form-group"><label>Email</label><input type="email" name="email" required placeholder="you@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" name="cpass" required placeholder="••••••••"></div>
+      <button type="submit" name="cust_login" class="btn btn-blue btn-full">Login</button>
+    </form>
+    <div class="auth-switch">Don't have an account? <a href="?view=register">Register</a></div>
+  </div>
+</div>
+
+<?php
+// ═══════════════════════════════════════════════════════════
+// VIEW: CUSTOMER REGISTER
+// ═══════════════════════════════════════════════════════════
+elseif ($view === 'register'):
+?>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h2>Create Account 🛒</h2>
+    <p>Join ShopZone — it's free!</p>
+    <form method="POST" action="?view=register">
+      <div class="form-group"><label>Full Name</label><input type="text" name="cname" required placeholder="Your Name"></div>
+      <div class="form-group"><label>Email</label><input type="email" name="email" required placeholder="you@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" name="cpass" required placeholder="Min 6 chars" minlength="6"></div>
+      <button type="submit" name="cust_register" class="btn btn-blue btn-full">Create Account</button>
+    </form>
+    <div class="auth-switch">Already have an account? <a href="?view=login">Login</a></div>
+  </div>
+</div>
+
+<?php
+// ═══════════════════════════════════════════════════════════
+// VIEW: CART
+// ═══════════════════════════════════════════════════════════
+elseif ($view === 'cart'):
+  $subtotal = 0;
+  $cart_items = [];
+  foreach ($_SESSION['cart'] as $pid => $qty) {
+    foreach ($db['products'] as $p) {
+      if ($p['id']==$pid) {
+        $ep = product_price($p);
+        $cart_items[] = ['p'=>$p,'qty'=>$qty,'ep'=>$ep,'sub'=>$ep*$qty];
+        $subtotal += $ep*$qty;
+      }
+    }
+  }
+  $tax = round($subtotal*0.08,2);
+  $grand = $subtotal+$tax;
+?>
+<div class="cart-wrap">
+  <h2 style="margin-bottom:18px;font-size:22px;font-weight:800">🛒 Your Cart</h2>
+
+  <?php if (empty($cart_items)): ?>
+    <div style="text-align:center;padding:60px;background:#fff;border-radius:14px;color:#718096">
+      <div style="font-size:52px;margin-bottom:12px">🛒</div>
+      <p style="font-size:16px;font-weight:600;margin-bottom:16px">Your cart is empty</p>
+      <a href="?view=shop" class="btn btn-blue">Continue Shopping</a>
+    </div>
+  <?php else: ?>
+
+  <table class="cart-table">
+    <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th></th></tr></thead>
+    <tbody>
+      <?php foreach ($cart_items as $ci): $p=$ci['p']; ?>
+      <tr>
+        <td><strong><?= htmlspecialchars($p['name']) ?></strong><br><span style="font-size:11px;color:#a0aec0"><?= $p['category'] ?></span></td>
+        <td>$<?= number_format($ci['ep'],2) ?></td>
+        <td>
+          <form method="POST" style="display:inline">
+            <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+            <input type="number" name="qty" value="<?= $ci['qty'] ?>" min="0" class="qty-box" onchange="this.form.submit()">
+            <input type="hidden" name="update_qty">
+          </form>
+        </td>
+        <td><strong>$<?= number_format($ci['sub'],2) ?></strong></td>
+        <td>
+          <form method="POST">
+            <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+            <button name="remove_cart" class="btn btn-red btn-sm" onclick="return confirm('Remove item?')">✕</button>
+          </form>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+
+  <!-- Summary -->
+  <div class="cart-summary">
+    <div class="summary-row"><span>Subtotal</span><span>$<?= number_format($subtotal,2) ?></span></div>
+    <div class="summary-row"><span>Tax (8%)</span><span>$<?= number_format($tax,2) ?></span></div>
+    <div class="summary-row"><span>Grand Total</span><span>$<?= number_format($grand,2) ?></span></div>
+  </div>
+
+  <!-- Order Form -->
+  <div class="order-form">
+    <h3>📋 Order Details</h3>
+    <form method="POST" action="?view=cart">
+      <div class="form-row2">
+        <div class="form-group"><label>Name</label><input type="text" name="c_name" value="<?= htmlspecialchars($_SESSION['cust_name']??'') ?>" required placeholder="Full Name"></div>
+        <div class="form-group"><label>Email</label><input type="email" name="c_email" value="<?= htmlspecialchars($_SESSION['cust_email']??'') ?>" required placeholder="Email"></div>
+        <div class="form-group"><label>Phone</label><input type="tel" name="c_phone" placeholder="+92 3xx xxxxxxx"></div>
+        <div class="form-group"><label>Address</label><input type="text" name="c_addr" placeholder="Delivery Address" required></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button type="submit" name="place_order" class="btn btn-blue" onclick="return confirm('Confirm your order?')">✅ Place Order & Get Receipt</button>
+        <button type="submit" name="clear_cart" class="btn btn-red" onclick="return confirm('Clear all items?')">🗑️ Clear Cart</button>
+        <a href="?view=shop" class="btn btn-gray">Continue Shopping</a>
+      </div>
+    </form>
+  </div>
+  <?php endif; ?>
+</div>
+
+<?php
+// ═══════════════════════════════════════════════════════════
+// VIEW: RECEIPT
+// ═══════════════════════════════════════════════════════════
+elseif ($view === 'receipt'):
+  $order = $_SESSION['last_order'] ?? null;
+  if (!$order) { header("Location: ?view=shop"); exit; }
+?>
+<div class="receipt-wrap">
+  <div class="receipt-card" id="receipt-content">
+    <div class="receipt-header">
+      <div class="receipt-check">✅</div>
+      <h2>ShopZone</h2>
+      <p style="font-size:15px;font-weight:700;color:#1a202c;margin-top:4px">Order Confirmed!</p>
+      <p>Order #<?= str_pad($order['id'],5,'0',STR_PAD_LEFT) ?> &nbsp;|&nbsp; <?= $order['date'] ?></p>
+      <p>Customer: <strong><?= htmlspecialchars($order['cust']) ?></strong></p>
+    </div>
+
+    <table class="receipt-table">
+      <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+      <tbody>
+        <?php foreach ($order['items'] as $item): ?>
+        <tr>
+          <td><?= htmlspecialchars($item['name']) ?></td>
+          <td><?= $item['qty'] ?></td>
+          <td>$<?= number_format($item['price'],2) ?></td>
+          <td>$<?= number_format($item['subtotal'],2) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+
+    <div class="receipt-total">
+      <div class="receipt-row"><span>Subtotal</span><span>$<?= number_format($order['subtotal'],2) ?></span></div>
+      <div class="receipt-row"><span>Tax (8%)</span><span>$<?= number_format($order['tax'],2) ?></span></div>
+      <div class="receipt-row grand"><span>Grand Total</span><span>$<?= number_format($order['grand'],2) ?></span></div>
+    </div>
+
+    <p style="text-align:center;margin-top:18px;color:#718096;font-size:12px">Thank you for shopping with ShopZone! 🎉</p>
+  </div>
+
+  <div id="no-print" style="display:flex;gap:12px;margin-top:16px">
+    <button class="print-btn" onclick="window.print()" style="flex:1">🖨️ Print / Save Receipt</button>
+    <a href="?view=shop" class="btn btn-gray" style="flex:1;text-align:center;padding:12px">🛍️ Shop More</a>
+  </div>
+</div>
+
+<?php
+// ═══════════════════════════════════════════════════════════
+// VIEW: ADMIN LOGIN
+// ═══════════════════════════════════════════════════════════
+elseif ($view === 'admin_login'):
+?>
+<div class="auth-wrap" style="background:#0f1117;min-height:calc(100vh - 60px)">
+  <div class="auth-card" style="background:#1e2535;border:1px solid #2d3748">
+    <h2 style="color:#fff">Admin Login 🔐</h2>
+    <p style="color:#718096">ShopZone Admin Panel</p>
+    <form method="POST" action="?view=admin_login">
+      <div class="form-group"><label style="color:#718096">Username</label>
+        <input type="text" name="auser" placeholder="admin" required style="background:#0f1117;color:#e2e8f0;border-color:#2d3748">
+      </div>
+      <div class="form-group"><label style="color:#718096">Password</label>
+        <input type="password" name="apass" placeholder="••••••••" required style="background:#0f1117;color:#e2e8f0;border-color:#2d3748">
+      </div>
+      <button type="submit" name="admin_login" class="btn btn-blue btn-full">Sign In</button>
+    </form>
+    <p style="text-align:center;margin-top:12px;font-size:12px;color:#4a5568">admin / admin123</p>
+    <div class="auth-switch"><a href="?view=shop" style="color:#718096">← Back to Shop</a></div>
+  </div>
+</div>
+
+<?php
+// ═══════════════════════════════════════════════════════════
+// VIEW: ADMIN PANEL
+// ═══════════════════════════════════════════════════════════
+elseif ($view === 'admin'):
+  if (!$is_admin) { header("Location: ?view=admin_login"); exit; }
+  $total_sales = array_sum($db['monthly_sales']);
+?>
+<div class="admin-wrap">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div style="padding:18px 20px;color:#4f7ef8;font-size:18px;font-weight:800;border-bottom:1px solid #2d3748">Shop<span style="color:#fff">Admin</span></div>
+    <a href="?view=admin&apage=dashboard" class="<?= $apage==='dashboard'?'act':'' ?>">📊 Dashboard</a>
+    <a href="?view=admin&apage=products"  class="<?= $apage==='products' ?'act':'' ?>">📦 Products</a>
+    <a href="?view=admin&apage=subscribers" class="<?= $apage==='subscribers'?'act':'' ?>">📧 Subscribers</a>
+    <a href="?view=admin&apage=sales"     class="<?= $apage==='sales'    ?'act':'' ?>">💰 Sales</a>
+    <a href="?view=admin&apage=users"     class="<?= $apage==='users'    ?'act':'' ?>">👥 Users</a>
+    <a href="?view=admin&apage=orders"    class="<?= $apage==='orders'   ?'act':'' ?>">📋 Orders</a>
+    <div style="padding:18px 20px;border-top:1px solid #2d3748;margin-top:auto">
+      <a href="?view=shop" style="color:#48bb78;border:none!important">🛍️ View Shop</a>
+      <a href="?alogout=1" style="color:#fc8181;border:none!important">🚪 Logout</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="amain">
+
+    <?php if ($msg): ?>
+    <div class="alert <?= $msg_type ?>" style="max-width:100%;margin-bottom:18px" id="amsg">
+      <?= $msg ?> <span style="float:right;cursor:pointer" onclick="document.getElementById('amsg').remove()">×</span>
+    </div>
+    <?php endif; ?>
+
+    <?php
+    // ── DASHBOARD ─────────────────────────────────────────
+    if ($apage === 'dashboard'):
+    ?>
+    <div class="page-title">Dashboard</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="slabel">Products</div><div class="sval"><?= count($db['products']) ?></div><div class="sbadge">▲ Active</div></div>
+      <div class="stat-card"><div class="slabel">Subscribers</div><div class="sval"><?= count($db['subscribers']) ?></div><div class="sbadge">▲ Total</div></div>
+      <div class="stat-card"><div class="slabel">Revenue</div><div class="sval">$<?= number_format($total_sales) ?></div><div class="sbadge">▲ 2025</div></div>
+      <div class="stat-card"><div class="slabel">Users</div><div class="sval"><?= count($db['customers']) ?></div><div class="sbadge">▲ Registered</div></div>
+    </div>
+
+    <!-- Sales Chart -->
+    <div class="form-card">
+      <h3>📈 Monthly Sales</h3>
+      <div class="chart-bars">
+        <?php $mx=max($db['monthly_sales']); foreach($db['monthly_sales'] as $mo=>$v): $h=round(($v/$mx)*130); ?>
+        <div class="bar-wrap">
+          <div class="bar-val">$<?= number_format($v/1000,1) ?>k</div>
+          <div class="bar" style="height:<?= $h ?>px"></div>
+          <div class="bar-label"><?= $mo ?></div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
+    <!-- Recent orders -->
+    <div class="table-card">
+      <div class="thead"><span>Recent Orders</span></div>
+      <table class="at">
+        <thead><tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Date</th></tr></thead>
+        <tbody>
+          <?php foreach(array_slice(array_reverse($db['orders']),0,5) as $o): ?>
+          <tr>
+            <td><?= str_pad($o['id'],5,'0',STR_PAD_LEFT) ?></td>
+            <td><?= htmlspecialchars($o['cust']) ?></td>
+            <td><?= count($o['items']) ?></td>
+            <td style="color:#48bb78;font-weight:700">$<?= number_format($o['grand'],2) ?></td>
+            <td><?= $o['date'] ?></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($db['orders'])): ?><tr><td colspan="5" style="text-align:center;color:#718096;padding:20px">No orders yet</td></tr><?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php
+    // ── PRODUCTS ──────────────────────────────────────────
+    elseif ($apage === 'products'):
+    ?>
+    <div class="page-title">Products Management</div>
+
+    <!-- ADD PRODUCT FORM -->
+    <div class="form-card">
+      <h3>➕ Add New Product</h3>
+      <form method="POST" action="?view=admin&apage=products" enctype="multipart/form-data">
+        <div class="frow">
+          <div><label>Product Name</label><input type="text" name="pname" required placeholder="Name"></div>
+          <div><label>Regular Price ($)</label><input type="number" name="pprice" step="0.01" required placeholder="e.g. 49.99"></div>
+          <div><label>Sale Price ($)</label><input type="number" name="psale" step="0.01" placeholder="Leave 0 if no sale"></div>
+          <div><label>Stock</label><input type="number" name="pstock" required placeholder="Qty"></div>
+        </div>
+        <div class="frow">
+          <div><label>Category</label>
+            <select name="pcat">
+              <option>Electronics</option><option>Footwear</option><option>Clothing</option>
+              <option>Accessories</option><option>Fitness</option><option>Home</option>
+            </select>
+          </div>
+          <div><label>Product Image</label><input type="file" name="pimg" accept="image/*"></div>
+          <div style="grid-column:span 2"><label>Description</label><input type="text" name="pdesc" placeholder="Short product description"></div>
+        </div>
+        <div class="chk-row">
+          <input type="checkbox" name="on_sale" id="os"> <label for="os" style="color:#cbd5e0;text-transform:none;font-size:13px;font-weight:600">🔥 Mark as On Sale</label>
+        </div>
+        <button type="submit" name="add_product" class="btn btn-blue">Add Product</button>
+      </form>
+    </div>
+
+    <!-- PRODUCTS TABLE -->
+    <div class="table-card">
+      <div class="thead"><span>All Products (<?= count($db['products']) ?>)</span></div>
+      <table class="at">
+        <thead><tr><th>IMG</th><th>Name</th><th>Price</th><th>Sale</th><th>Stock</th><th>Cat</th><th>Actions</th></tr></thead>
+        <tbody>
+          <?php foreach ($db['products'] as $p): ?>
+          <tr>
+            <td><img src="<?= img_src($p) ?>" class="img-thumb" alt=""></td>
+            <td><?= htmlspecialchars($p['name']) ?></td>
+            <td>$<?= number_format($p['price'],2) ?></td>
+            <td>
+              <?php if ($p['on_sale'] && $p['sale_price']>0): ?>
+                <span class="abadge sale">🔥 $<?= number_format($p['sale_price'],2) ?></span>
+              <?php else: echo '<span style="color:#4a5568">—</span>'; endif; ?>
+            </td>
+            <td><?= $p['stock'] ?></td>
+            <td><?= htmlspecialchars($p['category']) ?></td>
+            <td>
+              <button onclick="openEdit(<?= htmlspecialchars(json_encode($p),ENT_QUOTES) ?>)" class="btn btn-blue btn-sm">✏️ Edit</button>
+              <form method="POST" style="display:inline" onsubmit="return confirm('Delete this product?')">
+                <input type="hidden" name="del_id" value="<?= $p['id'] ?>">
+                <button name="delete_product" class="btn btn-red btn-sm">🗑️</button>
+              </form>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- EDIT MODAL -->
+    <div class="modal-bg" id="edit-modal">
+      <div class="modal">
+        <h3>✏️ Edit Product</h3>
+        <form method="POST" action="?view=admin&apage=products" enctype="multipart/form-data">
+          <input type="hidden" name="eid" id="e-id">
+          <div class="frow2">
+            <div><label>Name</label><input type="text" name="pname" id="e-name" required></div>
+            <div><label>Regular Price</label><input type="number" name="pprice" id="e-price" step="0.01" required></div>
+            <div><label>Sale Price</label><input type="number" name="psale" id="e-sale" step="0.01"></div>
+            <div><label>Stock</label><input type="number" name="pstock" id="e-stock" required></div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px"><label style="color:#718096">Category</label>
+            <select name="pcat" id="e-cat" style="width:100%;padding:9px 12px;background:#0f1117;border:1px solid #2d3748;border-radius:7px;color:#e2e8f0;font-size:13px">
+              <option>Electronics</option><option>Footwear</option><option>Clothing</option>
+              <option>Accessories</option><option>Fitness</option><option>Home</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px"><label style="color:#718096">Description</label>
+            <input type="text" name="pdesc" id="e-desc" style="width:100%;padding:9px 12px;background:#0f1117;border:1px solid #2d3748;border-radius:7px;color:#e2e8f0;font-size:13px">
+          </div>
+          <div class="form-group" style="margin-bottom:12px"><label style="color:#718096">New Image (optional)</label>
+            <input type="file" name="pimg" accept="image/*" style="width:100%;padding:9px 12px;background:#0f1117;border:1px solid #2d3748;border-radius:7px;color:#e2e8f0;font-size:13px">
+          </div>
+          <div class="chk-row">
+            <input type="checkbox" name="on_sale" id="e-sale-chk">
+            <label for="e-sale-chk" style="color:#cbd5e0;text-transform:none;font-size:13px">🔥 On Sale</label>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button type="submit" name="edit_product" class="btn btn-blue">Save Changes</button>
+            <button type="button" onclick="closeEdit()" class="btn btn-gray">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <?php
+    // ── SUBSCRIBERS ───────────────────────────────────────
+    elseif ($apage === 'subscribers'):
+    ?>
+    <div class="page-title">Subscribers</div>
+    <div class="stats-row" style="grid-template-columns:repeat(2,1fr);max-width:400px">
+      <div class="stat-card"><div class="slabel">Total</div><div class="sval"><?= count($db['subscribers']) ?></div></div>
+      <div class="stat-card"><div class="slabel">This Month</div><div class="sval"><?= count(array_filter($db['subscribers'],fn($s)=>substr($s['joined'],0,7)===date('Y-m'))) ?></div></div>
+    </div>
+    <div class="table-card">
+      <div class="thead"><span>Email List</span></div>
+      <table class="at">
+        <thead><tr><th>#</th><th>Email</th><th>Joined</th><th>Action</th></tr></thead>
+        <tbody>
+          <?php foreach ($db['subscribers'] as $s): ?>
+          <tr>
+            <td><?= $s['id'] ?></td>
+            <td><?= htmlspecialchars($s['email']) ?></td>
+            <td><?= $s['joined'] ?></td>
+            <td>
+              <form method="POST" onsubmit="return confirm('Remove subscriber?')">
+                <input type="hidden" name="sid" value="<?= $s['id'] ?>">
+                <button name="remove_sub" class="btn btn-red btn-sm">Remove</button>
+              </form>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php
+    // ── SALES ─────────────────────────────────────────────
+    elseif ($apage === 'sales'):
+      $ts = array_sum($db['monthly_sales']); $mx = max($db['monthly_sales']); $mn = min($db['monthly_sales']);
+      $best = array_search($mx,$db['monthly_sales']); $worst = array_search($mn,$db['monthly_sales']);
+    ?>
+    <div class="page-title">Sales Analytics</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="slabel">Yearly Revenue</div><div class="sval">$<?= number_format($ts) ?></div><div class="sbadge">▲ 2025</div></div>
+      <div class="stat-card"><div class="slabel">Best Month</div><div class="sval"><?= $best ?></div><div class="sbadge">$<?= number_format($mx) ?></div></div>
+      <div class="stat-card"><div class="slabel">Avg Monthly</div><div class="sval">$<?= number_format($ts/12) ?></div></div>
+      <div class="stat-card"><div class="slabel">Lowest Month</div><div class="sval"><?= $worst ?></div><div class="sbadge" style="color:#fc8181">$<?= number_format($mn) ?></div></div>
+    </div>
+    <div class="form-card">
+      <h3>📊 Monthly Breakdown</h3>
+      <div class="chart-bars" style="height:180px">
+        <?php foreach($db['monthly_sales'] as $mo=>$v): $h=round(($v/$mx)*160); ?>
+        <div class="bar-wrap">
+          <div class="bar-val">$<?= number_format($v/1000,1) ?>k</div>
+          <div class="bar" style="height:<?= $h ?>px"></div>
+          <div class="bar-label"><?= $mo ?></div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="thead"><span>Monthly Revenue Table</span></div>
+      <table class="at">
+        <thead><tr><th>Month</th><th>Revenue</th><th>vs Avg</th></tr></thead>
+        <tbody>
+          <?php $avg=$ts/12; foreach($db['monthly_sales'] as $mo=>$v):
+            $d=$v-$avg; $col=$d>=0?'#48bb78':'#fc8181'; $sign=$d>=0?'+':''; ?>
+          <tr>
+            <td><?= $mo ?></td>
+            <td>$<?= number_format($v,2) ?></td>
+            <td style="color:<?= $col ?>;font-weight:700"><?= $sign ?>$<?= number_format($d,2) ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php
+    // ── USERS ─────────────────────────────────────────────
+    elseif ($apage === 'users'):
+    ?>
+    <div class="page-title">Site Users</div>
+    <div class="stats-row" style="grid-template-columns:repeat(3,1fr);max-width:600px">
+      <div class="stat-card"><div class="slabel">Total</div><div class="sval"><?= count($db['customers']) ?></div></div>
+      <div class="stat-card"><div class="slabel">Active</div><div class="sval"><?= count(array_filter($db['customers'],fn($c)=>$c['status']==='Active')) ?></div></div>
+      <div class="stat-card"><div class="slabel">Orders</div><div class="sval"><?= array_sum(array_column($db['customers'],'orders')) ?></div></div>
+    </div>
+    <div class="table-card">
+      <div class="thead"><span>All Users</span></div>
+      <table class="at">
+        <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Orders</th><th>Joined</th><th>Status</th></tr></thead>
+        <tbody>
+          <?php foreach ($db['customers'] as $c): ?>
+          <tr>
+            <td><?= $c['id'] ?></td>
+            <td><?= htmlspecialchars($c['name']) ?></td>
+            <td><?= htmlspecialchars($c['email']) ?></td>
+            <td><?= $c['orders'] ?></td>
+            <td><?= $c['joined'] ?></td>
+            <td><span class="abadge <?= strtolower($c['status']) ?>"><?= $c['status'] ?></span></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <?php
+    // ── ORDERS ────────────────────────────────────────────
+    elseif ($apage === 'orders'):
+    ?>
+    <div class="page-title">All Orders</div>
+    <div class="table-card">
+      <div class="thead"><span>Orders (<?= count($db['orders']) ?>)</span></div>
+      <table class="at">
+        <thead><tr><th>Order#</th><th>Customer</th><th>Items</th><th>Total</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody>
+          <?php foreach(array_reverse($db['orders']) as $o): ?>
+          <tr>
+            <td>#<?= str_pad($o['id'],5,'0',STR_PAD_LEFT) ?></td>
+            <td><?= htmlspecialchars($o['cust']) ?></td>
+            <td>
+              <?php foreach($o['items'] as $it): ?>
+                <div style="font-size:11px"><?= htmlspecialchars($it['name']) ?> ×<?= $it['qty'] ?></div>
+              <?php endforeach; ?>
+            </td>
+            <td style="color:#48bb78;font-weight:700">$<?= number_format($o['grand'],2) ?></td>
+            <td><?= $o['date'] ?></td>
+            <td><span class="abadge active"><?= $o['status'] ?></span></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($db['orders'])): ?><tr><td colspan="6" style="text-align:center;color:#718096;padding:22px">No orders placed yet</td></tr><?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endif; // end apage ?>
+
+  </main>
+</div>
+
+<script>
+function openEdit(p) {
+  document.getElementById('e-id').value    = p.id;
+  document.getElementById('e-name').value  = p.name;
+  document.getElementById('e-price').value = p.price;
+  document.getElementById('e-sale').value  = p.sale_price;
+  document.getElementById('e-stock').value = p.stock;
+  document.getElementById('e-desc').value  = p.desc||'';
+  document.getElementById('e-sale-chk').checked = p.on_sale;
+  var sel = document.getElementById('e-cat');
+  for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===p.category){sel.selectedIndex=i;break;}}
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeEdit(){ document.getElementById('edit-modal').classList.remove('open'); }
+document.getElementById('edit-modal')?.addEventListener('click',function(e){if(e.target===this)closeEdit();});
+</script>
+
+<?php endif; // end view ?>
+
+<!-- Footer -->
+<footer style="background:#1a1f2e;color:#718096;text-align:center;padding:18px;font-size:13px;margin-top:auto">
+  © 2025 ShopZone — All rights reserved
+</footer>
+
+<script>
+// Auto-hide alerts after 4 seconds
+setTimeout(()=>{ var a=document.getElementById('main-alert'); if(a) a.remove(); }, 4000);
+setTimeout(()=>{ var a=document.getElementById('amsg'); if(a) a.remove(); }, 4000);
+</script>
 </body>
 </html>
