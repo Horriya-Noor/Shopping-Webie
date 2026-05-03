@@ -1,0 +1,244 @@
+{
+    "products": [
+        {
+            "id": 1,
+            "name": "Wireless Headphones",
+            "price": 79.99,
+            "sale_price": 59.99,
+            "on_sale": true,
+            "stock": 45,
+            "category": "Electronics",
+            "img": "",
+            "desc": "Premium sound quality with noise cancellation."
+        },
+        {
+            "id": 2,
+            "name": "Running Shoes",
+            "price": 54.99,
+            "sale_price": 0,
+            "on_sale": false,
+            "stock": 30,
+            "category": "Footwear",
+            "img": "",
+            "desc": "Lightweight comfort for daily running."
+        },
+        {
+            "id": 3,
+            "name": "Smart Watch",
+            "price": 129.99,
+            "sale_price": 99.99,
+            "on_sale": true,
+            "stock": 20,
+            "category": "Electronics",
+            "img": "",
+            "desc": "Track fitness and stay connected."
+        },
+        {
+            "id": 4,
+            "name": "Leather Wallet",
+            "price": 24.99,
+            "sale_price": 0,
+            "on_sale": false,
+            "stock": 60,
+            "category": "Accessories",
+            "img": "",
+            "desc": "Slim genuine leather wallet."
+        },
+        {
+            "id": 5,
+            "name": "Yoga Mat",
+            "price": 34.99,
+            "sale_price": 24.99,
+            "on_sale": true,
+            "stock": 15,
+            "category": "Fitness",
+            "img": "",
+            "desc": "Non-slip premium yoga mat."
+        },
+        {
+            "id": 8,
+            "name": "Designer Bag",
+            "price": 56.89,
+            "sale_price": 0,
+            "on_sale": false,
+            "stock": 34,
+            "category": "Accessories",
+            "img": "prod_8.jpeg",
+            "desc": ""
+        }
+    ],
+    "customers": [
+        {
+            "id": 1,
+            "name": "Ali Raza",
+            "email": "ali@example.com",
+            "pass": "$2y$10$AcoL9ILiIgQGwVwUbsRHMu0FvqAyGZQ2czIx0RDaObbpBsOBhVGaC",
+            "orders": 7,
+            "joined": "2024-10-01",
+            "status": "Active"
+        },
+        {
+            "id": 2,
+            "name": "Sara Khan",
+            "email": "sara@example.com",
+            "pass": "$2y$10$eyl5vgdNDuEl7UnCIEIsru0W6RX6swn9kIPHFmb30CTbZvWfGIrPe",
+            "orders": 2,
+            "joined": "2024-11-15",
+            "status": "Active"
+        }
+    ],
+    "subscribers": [
+        {
+            "id": 1,
+            "email": "ali@example.com",
+            "joined": "2026-04-29"
+        },
+        {
+            "id": 2,
+            "email": "sara@example.com",
+            "joined": "2026-04-29"
+        }
+    ],
+    "subscription_plans": [
+        {
+            "id": 1,
+            "name": "Basic Member",
+            "price": 0,
+            "currency": "INR",
+            "period": "forever",
+            "features": [
+                "Browse All Collections",
+                "Product Information",
+                "Updates & Newsletters"
+            ],
+            "popular": false
+        },
+        {
+            "id": 2,
+            "name": "Premium Member",
+            "price": 99,
+            "currency": "INR",
+            "period": "month",
+            "features": [
+                "10% OFF on Everything",
+                "Early Access to New Items",
+                "Free Shipping",
+                "AI Personal Shopping Brain",
+                "Priority Support"
+            ],
+            "popular": true
+        },
+        {
+            "id": 3,
+            "name": "VIP Elite",
+            "price": 499,
+            "currency": "INR",
+            "period": "month",
+            "features": [
+                "20% OFF on Everything",
+                "Exclusive Secret Products",
+                "VIP Customer Service",
+                "Advanced AI Assistant",
+                "Monthly Gift"
+            ],
+            "popular": false
+        }
+    ],
+    "user_subscriptions": [
+        {
+            "id": 1,
+            "customer_id": 1,
+            "plan_id": 2,
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-31",
+            "status": "active",
+            "auto_renew": true
+        }
+    ],
+    "orders": [
+        {
+            "id": 6,
+            "cust": "Ali Raza",
+            "email": "asskdj@nsd.com",
+            "phone": "094894565",
+            "items": [
+                {
+                    "name": "Wireless Headphones",
+                    "qty": 1,
+                    "price": 59.99,
+                    "subtotal": 59.99
+                },
+                {
+                    "name": "Running Shoes",
+                    "qty": 1,
+                    "price": 54.99,
+                    "subtotal": 54.99
+                }
+            ],
+            "subtotal": 114.98,
+            "tax": 9.2,
+            "grand": 124.18,
+            "date": "2026-04-29 10:37",
+            "status": "Confirmed"
+        },
+        {
+            "id": 7,
+            "cust": "Ali Raza",
+            "email": "bxjs@ww.swcom",
+            "phone": "01223234345",
+            "items": [
+                {
+                    "name": "Running Shoes",
+                    "qty": 1,
+                    "price": 54.99,
+                    "subtotal": 54.99
+                },
+                {
+                    "name": "Smart Watch",
+                    "qty": 1,
+                    "price": 99.99,
+                    "subtotal": 99.99
+                }
+            ],
+            "subtotal": 154.98,
+            "tax": 12.4,
+            "grand": 167.38,
+            "date": "2026-04-29 10:38",
+            "status": "Confirmed"
+        },
+        {
+            "id": 9,
+            "cust": "Guest",
+            "email": "bxjs@ww.swcom",
+            "phone": "01223234345",
+            "items": [
+                {
+                    "name": "Designer Bag",
+                    "qty": 1,
+                    "price": 56.89,
+                    "subtotal": 56.89
+                }
+            ],
+            "subtotal": 56.89,
+            "tax": 4.55,
+            "grand": 61.44,
+            "date": "2026-05-03 08:44",
+            "status": "Confirmed"
+        }
+    ],
+    "monthly_sales": {
+        "Jan": 3200,
+        "Feb": 4800,
+        "Mar": 4100,
+        "Apr": 5791.56,
+        "May": 6261.44,
+        "Jun": 5800,
+        "Jul": 7100,
+        "Aug": 6500,
+        "Sep": 5900,
+        "Oct": 7800,
+        "Nov": 9200,
+        "Dec": 11000
+    },
+    "next_id": 10
+}
