@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRKT.SHOP — Marketing Services</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ============================
+           CSS VARIABLES & RESET
+        ============================ */
+        :root {
+            --primary:      #0a0a0a;
+            --accent:       #ff5c35;
+            --accent-dark:  #e04020;
+            --bg:           #fafaf8;
+            --white:        #ffffff;
+            --gray-100:     #f5f5f0;
+            --gray-200:     #e8e8e0;
+            --gray-400:     #9e9e90;
+            --gray-700:     #3a3a30;
+            --transition:   all 0.3s cubic-bezier(0.4,0,0.2,1);
+            --radius:       14px;
+            --shadow:       0 4px 24px rgba(0,0,0,0.08);
+            --shadow-hover: 0 12px 48px rgba(0,0,0,0.16);
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--primary);
+            overflow-x: hidden;
+        }
+
+        /* ============================
+           NAVBAR
+        ============================ */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--primary);
+            height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2.5rem;
+            transition: var(--transition);
+        }
+
+        .navbar.scrolled {
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+
+        .logo {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+        .logo span { color: var(--accent); }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2.2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--gray-700);
+            font-weight: 500;
+            font-size: 0.9rem;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px; left: 0;
+            width: 0; height: 2px;
+            background: var(--accent);
+            transition: var(--transition);
+        }
+
+        .nav-links a:hover { color: var(--accent); }
+        .nav-links a:hover::after { width: 100%; }
+
+        .nav-cta {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.3rem;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        .btn-primary:hover {
+            background: var(--accent-dark);
+            border-color: var(--accent-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-lg {
+            padding: 0.85rem 2rem;
+            font-size: 1rem;
+            border-radius: 10px;
+        }
+
+        .btn-ghost {
+            background: rgba(255,255,255,0.12);
+            color: white;
+            border-color: rgba(255,255,255,0.35);
+        }
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Hamburger */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 5px;
+        }
+        .hamburger span {
+            width: 24px; height: 2px;
+            background: var(--primary);
+            border-radius: 2px;
+            transition: var(--transition);
+            display: block;
+        }
+
+        /* ============================
+           HERO SECTION
+        ============================ */
+        .hero {
+            min-height: 100vh;
+            background: var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 8rem 2rem 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated background blobs */
+        .hero::before,
+        .hero::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            animation: float 6s ease-in-out infinite;
+        }
+        .hero::before {
+            width: 600px; height: 600px;
+            background: rgba(255,92,53,0.18);
+            top: -100px; left: -150px;
+        }
+        .hero::after {
+            width: 500px; height: 500px;
+            background: rgba(52,152,219,0.12);
+            bottom: -100px; right: -150px;
+            animation-delay: -3s;
+        }
+
+        @keyframes float {
+            0%,100% { transform: translateY(0) scale(1); }
+            50%      { transform: translateY(-30px) scale(1.05); }
+        }
+
+        .hero-tag {
+            display: inline-block;
+            background: rgba(255,92,53,0.2);
+            color: var(--accent);
+            border: 1px solid rgba(255,92,53,0.35);
+            padding: 0.35rem 1rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+            position: relative;
+            animation: fadeDown 0.6s ease forwards;
+        }
+
+        .hero h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(3rem, 8vw, 6.5rem);
+            font-weight: 800;
+            color: white;
+            line-height: 1.0;
+            letter-spacing: -2px;
+            position: relative;
+            animation: fadeDown 0.6s ease 0.1s both;
+        }
+
+        .hero h1 .accent { color: var(--accent); }
+
+        .hero-sub {
+            color: rgba(255,255,255,0.65);
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            max-width: 560px;
+            margin: 1.5rem auto 2.5rem;
+            line-height: 1.7;
+            position: relative;
+            animation: fadeDown 0.6s ease 0.2s both;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            position: relative;
+            animation: fadeDown 0.6s ease 0.3s both;
+        }
+
+        @keyframes fadeDown {
+            from { opacity:0; transform:translateY(-20px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+
+        /* Scroll indicator */
+        .scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(255,255,255,0.4);
+            font-size: 0.75rem;
+            animation: bounce 2s ease infinite;
+        }
+        @keyframes bounce {
+            0%,100% { transform:translateX(-50%) translateY(0); }
+            50%      { transform:translateX(-50%) translateY(6px); }
+        }
+
+        /* ============================
+           STATS BAR
+        ============================ */
+        .stats-bar {
+            background: var(--accent);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 4rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            text-align: center;
+            color: white;
+        }
+        .stat-num {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            display: block;
+        }
+        .stat-lbl {
+            font-size: 0.8rem;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        /* ============================
+           SECTION STYLES
+        ============================ */
+        section { padding: 6rem 2rem; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            display: inline-block;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 0.6rem;
+        }
+
+        .section-title {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(1.8rem, 4vw, 3rem);
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 1rem;
+        }
+
+        .section-desc {
+            color: var(--gray-400);
+            font-size: 1rem;
+            line-height: 1.7;
+            max-width: 500px;
+        }
+
+        /* ============================
+           PAGES / NAVIGATION CARDS
+        ============================ */
+        .pages-section { background: var(--white); }
+
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .page-card {
+            background: var(--bg);
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius);
+            padding: 2rem;
+            text-decoration: none;
+            color: var(--primary);
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-card::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--card-color, var(--accent));
+            transform: scaleX(0);
+            transition: var(--transition);
+            transform-origin: left;
+        }
+
+        .page-card:hover {
+            border-color: var(--card-color, var(--accent));
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-4px);
+        }
+
+        .page-card:hover::before { transform: scaleX(1); }
+
+        .card-icon {
+            width: 52px; height: 52px;
+            border-radius: 12px;
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 0.4rem;
+            transition: var(--transition);
+        }
+
+        .page-card:hover .card-icon {
+            background: var(--card-color, var(--accent));
+            transform: scale(1.1) rotate(-5deg);
+        }
+
+        .card-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .card-desc {
+            font-size: 0.88rem;
+            color: var(--gray-400);
+            line-height: 1.6;
+            flex: 1;
+        }
+
+        .card-link {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--card-color, var(--accent));
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin-top: 0.4rem;
+        }
+
+        .card-link .arrow {
+            transition: var(--transition);
+        }
+
+        .page-card:hover .arrow { transform: translateX(4px); }
+
+        /* ============================
+           FEATURES SECTION
+        ============================ */
+        .features-section { background: var(--gray-100); }
+
+        .features-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 2rem;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feature-item {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 1.8rem;
+            transition: var(--transition);
+        }
+
+        .feature-item:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .feature-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-desc {
+            font-size: 0.84rem;
+            color: var(--gray-400);
+            line-height: 1.6;
+        }
+
+        /* ============================
+           HOW IT WORKS
+        ============================ */
+        .how-section { background: var(--white); }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+            position: relative;
+        }
+
+        .step {
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .step-num {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.2rem;
+            transition: var(--transition);
+        }
+
+        .step:hover .step-num {
+            background: var(--accent);
+            transform: scale(1.1);
+        }
+
+        .step-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-desc {
+            font-size: 0.84rem;
+            color: var(--gray-400);
+            line-height: 1.6;
+        }
+
+        /* ============================
+           CTA SECTION
+        ============================ */
+        .cta-section {
+            background: var(--primary);
+            text-align: center;
+            padding: 6rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(255,92,53,0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .cta-section h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 800;
+            color: white;
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .cta-section p {
+            color: rgba(255,255,255,0.6);
+            font-size: 1.05rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        /* ============================
+           FOOTER
+        ============================ */
+        .footer {
+            background: #050505;
+            color: rgba(255,255,255,0.6);
+            padding: 3.5rem 2.5rem 1.5rem;
+        }
+
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-top {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 3rem;
+            padding-bottom: 2.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-logo {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: white;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 0.8rem;
+        }
+        .footer-logo span { color: var(--accent); }
+
+        .footer-tagline {
+            font-size: 0.88rem;
+            line-height: 1.7;
+            margin-bottom: 1.2rem;
+            color: rgba(255,255,255,0.45);
+        }
+
+        .footer-col h4 {
+            font-family: 'Syne', sans-serif;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .footer-col ul { list-style: none; }
+        .footer-col ul li { margin-bottom: 0.6rem; }
+        .footer-col ul a {
+            color: rgba(255,255,255,0.5);
+            text-decoration: none;
+            font-size: 0.88rem;
+            transition: var(--transition);
+        }
+        .footer-col ul a:hover { color: var(--accent); padding-left: 4px; }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.3);
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .footer-bottom span { color: var(--accent); }
+
+        /* ============================
+           ANIMATIONS (scroll reveal)
+        ============================ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ============================
+           RESPONSIVE
+        ============================ */
+        @media (max-width: 900px) {
+            .footer-top {
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar { padding: 0 1.2rem; }
+
+            .nav-links {
+                display: none;
+                position: fixed;
+                top: 68px; left: 0; right: 0;
+                background: white;
+                flex-direction: column;
+                padding: 1.5rem 2rem;
+                border-bottom: 2px solid var(--primary);
+                gap: 1.2rem;
+                z-index: 999;
+            }
+
+            .nav-links.open { display: flex; }
+
+            .hamburger { display: flex; }
+
+            .hero h1 { font-size: 2.8rem; letter-spacing: -1px; }
+
+            .stats-bar { gap: 2rem; }
+
+            .pages-grid { grid-template-columns: 1fr; }
+
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .footer-top { grid-template-columns: 1fr; gap: 1.5rem; }
+            .steps-grid { grid-template-columns: 1fr; }
+            .nav-cta .btn-outline { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================
+         NAVBAR
+    ============================ -->
+    <nav class="navbar" id="navbar">
+        <a href="home.html" class="logo">MRKT<span>.</span>SHOP</a>
+
+        <ul class="nav-links" id="navLinks">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="index.php">Shop</a></li>
+            <li><a href="cart.php">Cart</a></li>
+            <li><a href="wishlist.php">Wishlist</a></li>
+            <li><a href="about.php">About</a></li>
+        </ul>
+
+        <div class="nav-cta">
+            <a href="login.php" class="btn btn-outline">Login</a>
+            <a href="signup.php" class="btn btn-primary">Sign Up</a>
+            <button class="hamburger" id="hamburger" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ============================
+         HERO SECTION
+    ============================ -->
+    <section class="hero" id="home">
+        <div class="hero-tag">✦ Premium Marketing Services</div>
+
+        <h1>
+            Your Brand.<br>
+            <span class="accent">Our Expertise.</span>
+        </h1>
+
+        <p class="hero-sub">
+            From logo design to full digital campaigns — we deliver professional marketing services that grow your business and make your brand unforgettable.
+        </p>
+
+        <div class="hero-buttons">
+            <a href="index.php" class="btn btn-primary btn-lg">Browse Services →</a>
+            <a href="about.php" class="btn btn-ghost btn-lg">Meet The Team</a>
+        </div>
+
+        <div class="scroll-hint">
+            <span>Scroll down</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- ============================
+         STATS BAR
+    ============================ -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-num" data-target="10">0</span>
+            <div class="stat-lbl">Services</div>
+        </div>
+        <div class="stat-item">
+            <span class="stat-num" data-target="5">0</span>
+            <div class="stat-lbl">Categories</div>
+        </div>
+        <div class="stat-item">
+            <span class="stat-num" data-target="4">0</span>
+            <div class="stat-lbl">Team Members</div>
+        </div>
+        <div class="stat-item">
+            <span class="stat-num" data-target="100">0</span>
+            <div class="stat-lbl">% PHP + MySQL</div>
+        </div>
+    </div>
+
+    <!-- ============================
+         PAGES / NAVIGATION CARDS
+    ============================ -->
+    <section class="pages-section" id="pages">
+        <div class="container">
+            <div class="reveal">
+                <span class="section-label">Navigate The App</span>
+                <h2 class="section-title">Everything In One Place</h2>
+                <p class="section-desc">Every page of the Shopping Module — click any card to go directly there.</p>
+            </div>
+
+            <div class="pages-grid">
+
+                <a href="index.php" class="page-card reveal" style="--card-color:#ff5c35;">
+                    <div class="card-icon">🛍️</div>
+                    <div class="card-title">Shop — Product Catalog</div>
+                    <div class="card-desc">Browse all marketing services with live search, category filters, price sorting, and product badges. The heart of the module.</div>
+                    <div class="card-link">Go to Shop <span class="arrow">→</span></div>
+                </a>
+
+                <a href="product.php?id=1" class="page-card reveal" style="--card-color:#3498db;">
+                    <div class="card-icon">📄</div>
+                    <div class="card-title">Product Detail Page</div>
+                    <div class="card-desc">Full product view with description, price history, variant selector, stock info, add-to-cart, and wishlist toggle.</div>
+                    <div class="card-link">View Example <span class="arrow">→</span></div>
+                </a>
+
+                <a href="cart.php" class="page-card reveal" style="--card-color:#2ecc71;">
+                    <div class="card-icon">🛒</div>
+                    <div class="card-title">Shopping Cart</div>
+                    <div class="card-desc">Manage your cart items, adjust quantities, remove products, apply promo codes, and see your order summary.</div>
+                    <div class="card-link">Open Cart <span class="arrow">→</span></div>
+                </a>
+
+                <a href="wishlist.php" class="page-card reveal" style="--card-color:#e74c3c;">
+                    <div class="card-icon">❤️</div>
+                    <div class="card-title">Wishlist</div>
+                    <div class="card-desc">Save products for later. Toggle the heart button on any product card to add or remove from your personal wishlist.</div>
+                    <div class="card-link">My Wishlist <span class="arrow">→</span></div>
+                </a>
+
+                <a href="login.php" class="page-card reveal" style="--card-color:#9b59b6;">
+                    <div class="card-icon">🔐</div>
+                    <div class="card-title">Login</div>
+                    <div class="card-desc">Secure login with email or username. Passwords are hashed using bcrypt. Sessions track your login state across pages.</div>
+                    <div class="card-link">Login Page <span class="arrow">→</span></div>
+                </a>
+
+                <a href="signup.php" class="page-card reveal" style="--card-color:#f39c12;">
+                    <div class="card-icon">✨</div>
+                    <div class="card-title">Sign Up</div>
+                    <div class="card-desc">Create a new account with username, email, and password. Includes real-time validation and a password strength bar.</div>
+                    <div class="card-link">Register Now <span class="arrow">→</span></div>
+                </a>
+
+                <a href="about.php" class="page-card reveal" style="--card-color:#1abc9c;">
+                    <div class="card-icon">👥</div>
+                    <div class="card-title">About — Team Profiles</div>
+                    <div class="card-desc">Meet the 4 developers. Each member has an animated profile card showing their module, skills, and role.</div>
+                    <div class="card-link">Meet The Team <span class="arrow">→</span></div>
+                </a>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================
+         FEATURES
+    ============================ -->
+    <section class="features-section" id="features">
+        <div class="container">
+            <div class="features-header reveal">
+                <div>
+                    <span class="section-label">What's Implemented</span>
+                    <h2 class="section-title">Module Features</h2>
+                </div>
+                <p class="section-desc">Everything required by the WAD course project specifications — and more.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-item reveal">
+                    <span class="feature-icon">🔍</span>
+                    <div class="feature-title">Live Search</div>
+                    <p class="feature-desc">Real-time product filtering using the <code>keyup</code> JavaScript event. No page reload needed.</p>
+                </div>
+                <div class="feature-item reveal">
+                    <span class="feature-icon">🏷️</span>
+                    <div class="feature-title">Category Filters</div>
+                    <p class="feature-desc">Tab-based category filtering and dropdown sort (price, name) for easy browsing.</p>
+                </div>
+                <div class="feature-item reveal">
+                    <span class="feature-icon">🛒</span>
+                    <div class="feature-title">AJAX Cart</div>
+                    <p class="feature-desc">Add, update quantity, and remove items without refreshing the page. Cart badge updates live.</p>
+                </div>
+                <div class="feature-item reveal">
+                    <span class="feature-icon">❤️</span>
+                    <div class="feature-title">Wishlist</div>
+                    <p class="feature-desc">Toggle wishlisting on any product. Persisted in MySQL, synced across sessions.</p>
+                </div>
+                <div class="feature-item reveal">
+                    <span class="feature-icon">🔒</span>
+                    <div class="feature-title">Secure Auth</div>
+                    <p class="feature-desc">Passwords hashed with <code>password_hash()</code>. Prepared statements prevent SQL injection.</p>
+                </div>
+                <div class="feature-item reveal">
+                    <span class="feature-icon">📱</span>
+                    <div class="feature-title">Fully Responsive</div>
+                    <p class="feature-desc">Works on mobile, tablet, and desktop using CSS media queries and a hamburger menu.</p>
+                </div>
+                <div class="feature-item reveal">
+                    <span class="feature-icon">💾</span>
+                    <div class="feature-title">Auto Database Setup</div>
+                    <p class="feature-desc">No SQL file to run manually. The database, tables, and sample data are created automatically on first visit.</p>
+                </div>
+                <div class="feature-item reveal">
+                    <span class="feature-icon">🎨</span>
+                    <div class="feature-title">Animations & Transitions</div>
+                    <p class="feature-desc">Hover effects, fade-in cards, toast notifications, modal transitions, and scroll animations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================
+         HOW IT WORKS
+    ============================ -->
+    <section class="how-section" id="how">
+        <div class="container">
+            <div style="text-align:center; margin-bottom:1rem;" class="reveal">
+                <span class="section-label">How It Works</span>
+                <h2 class="section-title">The User Journey</h2>
+            </div>
+
+            <div class="steps-grid">
+                <div class="step reveal">
+                    <div class="step-num">1</div>
+                    <div class="step-title">Sign Up / Login</div>
+                    <p class="step-desc">Create your account securely. Your password is hashed — never stored as plain text.</p>
+                </div>
+                <div class="step reveal">
+                    <div class="step-num">2</div>
+                    <div class="step-title">Browse Services</div>
+                    <p class="step-desc">Explore products by category, search by keyword, or sort by price. Filter to find exactly what you need.</p>
+                </div>
+                <div class="step reveal">
+                    <div class="step-num">3</div>
+                    <div class="step-title">Save or Add to Cart</div>
+                    <p class="step-desc">Heart a product to wishlist it, or click "Add to Cart" to start your order. The cart badge updates instantly.</p>
+                </div>
+                <div class="step reveal">
+                    <div class="step-num">4</div>
+                    <div class="step-title">Checkout</div>
+                    <p class="step-desc">Review your cart, apply a promo code (try MRKT10), and place your order.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================
+         CTA
+    ============================ -->
+    <section class="cta-section">
+        <div class="container reveal">
+            <h2>Ready to Explore the Module?</h2>
+            <p>Jump into the live shop and test every feature — search, cart, wishlist, and more.</p>
+            <div class="cta-buttons">
+                <a href="index.php" class="btn btn-primary btn-lg">Open Shop →</a>
+                <a href="signup.php" class="btn btn-ghost btn-lg">Create Account</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================
+         FOOTER
+    ============================ -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-top">
+                <div class="footer-col">
+                    <a href="home.html" class="footer-logo">MRKT<span>.</span>SHOP</a>
+                    <p class="footer-tagline">
+                        A Web Application Development semester project — 4th Semester. Built with PHP, MySQL, HTML, CSS & JavaScript.
+                    </p>
+                </div>
+                <div class="footer-col">
+                    <h4>Pages</h4>
+                    <ul>
+                        <li><a href="home.html">Home</a></li>
+                        <li><a href="index.php">Shop</a></li>
+                        <li><a href="cart.php">Cart</a></li>
+                        <li><a href="wishlist.php">Wishlist</a></li>
+                        <li><a href="about.php">About</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Account</h4>
+                    <ul>
+                        <li><a href="login.php">Login</a></li>
+                        <li><a href="signup.php">Sign Up</a></li>
+                        <li><a href="logout.php">Logout</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Tech Stack</h4>
+                    <ul>
+                        <li><a href="#">HTML5 + CSS3</a></li>
+                        <li><a href="#">JavaScript (ES6)</a></li>
+                        <li><a href="#">PHP 8</a></li>
+                        <li><a href="#">MySQL</a></li>
+                        <li><a href="#">XAMPP</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2025 MRKT.SHOP — WAD Project | Module 1: Shopping</p>
+                <p>Built with <span>♥</span> for Web Application Development</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ============================
+         JAVASCRIPT
+    ============================ -->
+    <script>
+        // ---- Sticky Navbar shadow ----
+        window.addEventListener('scroll', () => {
+            document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+        });
+
+        // ---- Hamburger Menu ----
+        document.getElementById('hamburger').addEventListener('click', () => {
+            document.getElementById('navLinks').classList.toggle('open');
+        });
+
+        // Close menu when a link is clicked on mobile
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('navLinks').classList.remove('open');
+            });
+        });
+
+        // ---- Scroll Reveal Animation ----
+        const reveals = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, i) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, 60 * i);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        reveals.forEach(el => observer.observe(el));
+
+        // ---- Count-up Animation for Stats ----
+        const statNums = document.querySelectorAll('[data-target]');
+        const statsBar = document.querySelector('.stats-bar');
+
+        const statsObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                statNums.forEach(el => {
+                    const target = parseInt(el.dataset.target);
+                    let current = 0;
+                    const step = target / 40;
+                    const timer = setInterval(() => {
+                        current += step;
+                        if (current >= target) {
+                            el.textContent = target + (el.dataset.suffix || '');
+                            clearInterval(timer);
+                        } else {
+                            el.textContent = Math.floor(current);
+                        }
+                    }, 35);
+                });
+                statsObserver.disconnect();
+            }
+        }, { threshold: 0.5 });
+
+        if (statsBar) statsObserver.observe(statsBar);
+
+        // ---- Page Card stagger delay ----
+        document.querySelectorAll('.page-card').forEach((card, i) => {
+            card.style.transitionDelay = (i * 0.05) + 's';
+        });
+    </script>
+
+</body>
+</html>
