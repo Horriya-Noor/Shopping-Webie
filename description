@@ -1,0 +1,9 @@
+about page is added using bootstrap and the index page is also modified to add a link to the about page. The commit message is "Added about page and updated index page with link to about page".
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch main
+# Changes to be committed:
+#	modified:   about.html
+#	modified:   index.html
+#
